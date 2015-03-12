@@ -33,13 +33,7 @@ colors = {
 	'leg'     : Chalk.underline
 	'legs'    : Chalk.underline
 }
-colored = (S) ->
-	s = S.split(' ')
-	s.map((word) ->
-		w = word.toLowerCase()
-		return if w of colors
-			colors[w](word)
-		else word
+module.exports = (s) ->
+	s.split(' ').map((w) ->
+		colors[w.toLowerCase()]?(w) or w
 	).join ' '
-
-module.exports = colored
