@@ -20,17 +20,17 @@ class Action.MOVE extends Action
 class Action.HEAL extends Action
 	constructor: (target, @health) -> super target
 	end: (context) ->
-		@log "Healing #{@target} by #{@health}"
+		@log "Healing #{@target} by #{@health.toFixed 2}"
 		context.get(@target).adjustHp @health
 class Action.MANA extends Action
 	constructor: (target, @mana) -> super target
 	end: (context) ->
-		@log "Mana increasing on #{@target} by #{@mana}"
-		context.get(@target).adjustMana @mana
+		if (ret = context.get(@target).adjustMana @mana) > 0
+			@log "Mana increasing on #{@target} by #{ret.toFixed 2}"
 class Action.DAMAGE extends Action
 	constructor: (target, @type, @slot, @damage) -> super target
 	end: (context) ->
-		@log "Hurting #{@target} by #{@damage}"
+		@log "Hurting #{@target} (#{context.get(@target).name}) by #{@damage} hp"
 		context.get(@target).adjustHp -1 * @damage
 class Action.ADDSTATUS extends Action
 	constructor: (target, @status) -> super target
@@ -65,12 +65,9 @@ class Action.Stack
 			isEmpty:  -> !items.length
 			log: (m...) -> $.log "Action.Stack:", m...
 			process:  (context) ->
+				if items.length > 0
+					@log "processing items:", $(items).select('constructor.name').weave($(items).map(context.get).select('name')).join ' '
 				while not @isEmpty()
 					item = items.pop()
-					@log "starting item:", item.constructor.name
 					@pushAll reactions = item.begin(context)
-					@log "added #{reactions.length} reactions:", reactions
 					item.end(context)
-					@log "finished item:", item.constructor.name
-				@log "done."
-		@log "Starting new stack:", items.map($.type)
