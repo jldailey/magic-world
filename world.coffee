@@ -1,5 +1,6 @@
 $ = require 'bling'
 Action = require './action'
+Base = require './base'
 Status = require './status'
 
 empty = Object.freeze []
@@ -105,20 +106,13 @@ decorator Logger = ->
 			$.log n+":", msg...
 	}
 
-class Base
-	# two synonyms for applying decorators
-	@is =  (f) -> f.call @::, @::
-	@has = (f) -> f.call @::, @::
-
 class Context
-	constructor: (owner, targets) ->
-		$.extend @, {
-			owner: owner,
-			targets: targets = $.extend { owner: owner }, targets
-			get: (target) ->
-				return if $.is 'string', target then targets[target]
-				else target
-		}
+	constructor: (owner, targets) -> $.extend @,
+		owner: owner,
+		targets: targets = $.extend { owner: owner }, targets
+		get: (target) ->
+			return if $.is 'string', target then targets[target]
+			else target
 
 class Wizard extends Base
 	@has Logger
