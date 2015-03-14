@@ -1,16 +1,18 @@
 {
-  "name": "world-object-model",
-  "version": "0.0.1",
-  "description": "World Object Model (like a DOM, but maybe for games or something more abstract)",
-  "main": "world.coffee",
-  "scripts": {
-    "test": "make test"
-  },
-  "dependencies": {
-    "bling": "latest",
-    "chalk": "^1.0.0",
-    "coffee-script": "latest"
-  },
-  "author": "Jesse Dailey <jesse_dailey@fastmail.com>",
-  "license": "MIT"
+	"name": "world-object-model",
+	"version": "0.0.1",
+	"description": "World Object Model (like a DOM, but maybe for games or something more abstract)",
+	"main": "world.coffee",
+	"scripts": {
+		"test": "make test"
+	},
+	"dependencies": {
+		"bling":"latest",
+		"browserify":"latest",
+		"uglify":"latest",
+		"chalk":"latest",
+		"coffee-script":"latest"
+	},
+	"author": "Jesse Dailey <jesse_dailey@fastmail.com>",
+	"license": "MIT"
 }
