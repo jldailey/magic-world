@@ -1,2 +1,4 @@
 node_modules
 bin
+site/site.js site/site.ugly.js
+site/site.js
