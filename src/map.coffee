@@ -2,18 +2,18 @@
 simpleTileGrid = """
 W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W.
 W. w1 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w3 W.
-W. w4 g. g. g. c8 g8 g8 c7 g. g. g. g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
+W. w4 g. g. g. C4 g8 g8 C3 g. g. g. g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
 W. w4 g. t1 g. g6 d1 d3 g4 g. g. t2 g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
-W. w4 g. g. c8 g9 d4 d6 g4 g. g. g. g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
-W. w4 g. g. g6 d1 c1 d6 g4 g. g. c8 g8 g8 g8 g8 g8 g8 g8 c7 g. g. g. g. w6 W.
+W. w4 g. g. C4 g9 d4 d6 g4 g. g. g. g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
+W. w4 g. g. g6 d1 c1 d6 g4 g. g. C4 g8 g8 g8 g8 g8 g8 g8 C3 g. g. g. g. w6 W.
 W. w4 g. g. g6 d4 d. d6 g4 g. g. g6 d1 d2 d2 d2 d2 d2 d3 g4 g. g. g. g. w6 W.
-W. w4 g. g. g6 d4 c4 d9 g4 g. g. g6 d4 c4 d8 d8 d8 c3 d6 g4 c8 g8 g8 c7 w6 W.
-W. w4 g. g. g6 d4 d6 g1 c5 g. g. g6 d4 d6 g1 g2 g3 d4 d6 g4 g6 d1 d3 g4 w6 W.
+W. w4 g. g. g6 d4 c4 d9 g4 g. g. g6 d4 c4 d8 d8 d8 c3 d6 g4 C4 g8 g8 C3 w6 W.
+W. w4 g. g. g6 d4 d6 g1 C1 g. g. g6 d4 d6 g1 g2 g3 d4 d6 g4 g6 d1 d3 g4 w6 W.
 W. w4 g. g. g6 d4 d6 g4 g. g. g. g6 d4 d6 g4 g. g6 d4 d6 g7 g9 d4 d6 g4 w6 W.
 W. w4 g. g. g6 d4 d6 g7 g8 g8 g8 g9 d4 d6 g4 g. g6 d4 c2 d2 d2 c1 d6 g4 w6 W.
 W. w4 g. g. g6 d4 c2 d2 d2 d2 d2 d2 c1 d6 g4 g. g6 d7 d8 d8 d8 d8 d9 g4 w6 W.
-W. w4 g. g. g6 d7 d8 d8 d8 d8 d8 d8 d8 d9 g4 g. c6 g2 g2 g2 g2 g2 g2 c5 w6 W.
-W. w4 g. g. c6 g2 g2 g2 g2 g2 g2 g2 g2 g2 c5 g. g. g. g. g. g. g. g. g. w6 W.
+W. w4 g. g. g6 d7 d8 d8 d8 d8 d8 d8 d8 d9 g4 g. C2 g2 g2 g2 g2 g2 g2 C1 w6 W.
+W. w4 g. g. C2 g2 g2 g2 g2 g2 g2 g2 g2 g2 C1 g. g. g. g. g. g. g. g. g. w6 W.
 W. w7 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w8 w9 W.
 W. w0 w- w- w- w- w- w- w- w- w- w- w- w- w- w- w- w- w- w- w- w- w- w- w+ W.
 W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W.
@@ -30,10 +30,10 @@ macros = {
 		g9 d4 d6 g4
 		d2 c1 d6 g4
 		d8 d8 d9 g4
-		g2 g2 g2 c5
+		g2 g2 g2 C1
 	"""
 	"road-w-s": """
-		g8 g8 g8 c7
+		g8 g8 g8 C3
 		d2 d2 d3 g4
 		d8 c3 d6 g4
 		g3 d4 d6 g4  
@@ -42,10 +42,10 @@ macros = {
 		g6 d4 d6 g7
 		g6 d4 c2 d2
 		g6 d7 d8 d8
-		c6 g2 g2 g2
+		C2 g2 g2 g2
 	"""
 	"road-e-s": """
-		c8 g8 g8 g8
+		C4 g8 g8 g8
 		g6 d1 d2 d2
 		g6 d4 c4 d8
 		g6 d4 d6 g1
@@ -191,32 +191,37 @@ class TileGrid
 		@
 
 cacheImageData "./textures/tiles-tr2.png", (err, image) ->
+	if err
+		return console.error err
+
 	class TileSet
-		constructor: ->
+		constructor: (@tw, @th) ->
 			@tiles = Object.create null
-			@images = Object.create null
 		register: (prefix, poses) ->
 			switch $.type poses
 				when "object"
 					for p,v of poses
+						$.log "Loading pose:", prefix+p, v
 						@tiles[prefix+p] = v
-						@images[prefix+p] = image.getImageData v...
 				when "array","bling"
+					$.log "Loading pose:", prefix, poses
 					@tiles[prefix] = poses
-					@images[prefix] = image.getImageData poses...
-		lookup: (symbol) ->
-			@images[symbol]
+				else $.log "Failed to load unknown type: ", $.type poses
+			@
+		draw: (context, symbol, tx, ty) ->
+			return unless symbol of @tiles
+			context.drawImage image, @tiles[symbol]..., tx*@tw, ty*@th, @tw, @th
 	
+	$.log "Creating new tileset..."
 	tileset = new TileSet()
+
+	$.log "Loading 'trees'..."
 	tileset.register 't', trees = {
 		1: [1, 1, 64, 64]
 		2: [592, 112, 64, 64]
 	}
-	dirt_edge_offset =   [528, 273, 0, 0]
-	grass_edge_offset =  [528, 337, 0, 0]
-	grass_coast_offset = [160, 464, 0, 0]
-	grass_cliff_offset = [160, 529, 0, 0]
-	water_offset = [0, 688, 1, 1]
+
+	$.log "Defining edges..."
 	edges = { # this is a repeated layout used in the sprite
 		1:   [ 0,  0, 16, 16]
 		2:   [16,  0, 16, 16]
@@ -232,17 +237,17 @@ cacheImageData "./textures/tiles-tr2.png", (err, image) ->
 		'-': [16, 48, 15, 16]
 		'+': [32, 48, 16, 16]
 	}
-
-	# register all the things in the standard layout:
-	for edge,v of edges
-		# grass
-		tileset.register 'g'+edge, $(v).plus(grass_edge_offset).toArray()
-		# dirt
-		tileset.register 'd'+edge, $(v).plus(dirt_edge_offset).toArray()
-		# cliff-water transitions
-		tileset.register 'w'+edge, $(v).plus(grass_coast_offset).toArray()
-		# underwater
-		tileset.register 'W'+edge, $(v).plus(water_offset).toArray()
+	register_edge = (symbol, offset) ->
+		for edge, v of edges
+			tileset.register symbol+edge, $(v).plus(offset).toArray()
+	$.log "Loading edges..."
+	register_edge 'd', [528, 273, 0, 0] #dirt
+	register_edge 'g', [528, 337, 0, 0] # grass
+	register_edge 'w', [160, 464, 0, 0] # grass_coast
+	# register_edge 'k', [160, 529, 0, 0] # grass_cliff
+	register_edge 'W', [0, 688, 1, 1] # underwater
+	register_edge 'o', [810, 0, 0, 0] # stone wall
+	register_edge 'O', [809, 240, 0, 0] # sand stone wall
 
 	# heavy grass
 	tileset.register 'GG', [528, 80, 48, 48]
@@ -250,35 +255,52 @@ cacheImageData "./textures/tiles-tr2.png", (err, image) ->
 	# the no-op tile
 	tileset.register 'nn': [0,0,0,0]
 
-	# inside corner pieces, dirt and grass
-	tileset.register 'c', {
-		1:   [576, 258, 8, 9]
-		2:   [582, 258, 8, 9]
-		3:   [576, 264.5, 8, 8]
-		4:   [582, 264, 8, 8]
-		5:   [561, 321, 8, 8]
-		6:   [567, 321, 8, 8]
-		7:   [561, 327, 8, 8]
-		8:   [567, 327, 8, 8]
+	corners = { # the standard inner-corner layout
+		1: [ 0, 0, 8, 8 ]
+		2: [ 8, 0, 8, 8 ]
+		3: [ 0, 8, 8, 8 ]
+		4: [ 8, 8, 8, 8 ]
 	}
+	register_corner = (symbol, offset) ->
+		for corner, v of corners
+			tileset.register symbol+corner, $(v).plus(offset).toArray()
+	register_corner 'c', [ 576, 258, 0, 0 ]
+	register_corner 'C', [ 560, 320, 0, 0 ]
 
 	class Sprite
-		constructor: (@name, @frame_len, @poses) ->
-			@tx = @ty = 1
+		constructor: (@name, @frame_dur, @poses) ->
+			$.assert @frame_dur > 0, "negative frame duration not allowed"
+			@tx = @ty = 0
+			@frame_left = @frame_dur
+			@frame_index = 0
 			@paused = false
 		pause: -> @paused = true
 		resume: -> @paused = false
 		tick: (dt) ->
-		draw: (map) ->
+			return if @paused
+			@frame_left -= dt
+			while @frame_left <= 0
+				@frame_left += @frame_dur
+				@frame_index = (@frame_index + 1) % @poses[@poseIndex].length
+		draw: (context, tx, ty) ->
+			symbol = @prefix+@poseIndex+@frame_index
+			tileset.draw context, symbol, tx, ty
+		setPose: (@poseIndex) ->
 		register: (prefix, tileset) ->
-			tileset.register prefix, @poses
+			@prefix = prefix
+			for p, u of @poses
+				tileset.register prefix+p, u[0]
+				for v,i in u
+					tileset.register prefix+p+i, v
 
 	new Sprite('blueman', 100, {
 		2:   [ [257, 531, 32, 32],[289, 531, 32, 32],[321, 531, 32, 32] ]
 		4:   [ [257, 563, 32, 32],[289, 563, 32, 32],[321, 563, 32, 32] ]
 		6:   [ [257, 595, 32, 32],[289, 595, 32, 32],[321, 595, 32, 32] ]
 		8:   [ [257, 627, 32, 32],[289, 627, 32, 32],[321, 627, 32, 32] ]
-	}).register('p', tiles)
+	}).register('p', tileset)
+
+	# football player: [ 645, 529, 64, 64 ], 4x4 grid
 
 	# lamp post
 	tileset.register 'lp', [ 777, 192, 32, 48 ]
