@@ -1,14 +1,9 @@
 $ = require 'bling'
 Action = require './action'
-Base = require './base'
 Status = require './status'
+$.extend $.global, require "./globals"
+$.extend $.global, require "./mixins"
 
-empty = Object.freeze []
-decorator = ->
-immutable = (o) -> Object.freeze o
-getter = (o, name, prop, key) ->
-	$.defineProperty o, name,
-		get: -> @[prop][key]
 
 # quick ES6 shim for Map
 unless global.Map
@@ -25,88 +20,7 @@ class Spell
 	constructor: (@name, @cost, @effects...) ->
 		@effects.unshift new Action.MANA 'self', -@cost
 
-decorator Position = ->
-	getter @, 'x', 'pos', 0
-	getter @, 'y', 'pos', 1
-	getter @, 'z', 'pos', 2
-	$.extend @, {
-		pos: immutable $ 0,0,0
-		moveTo: (pos) -> @pos = immutable pos
-		translate: (pos) -> @pos = immutable @pos.plus pos
-	}
-
-decorator Attribute = (name, cur, max) -> ->
-	caps = $.capitalize $.camelize name
-	getter @, 'current'+caps, name, 0
-	getter @, 'max'+caps, name, 1
-	@[name] = immutable [cur, max]
-	@['adjust'+caps] = (delta) ->
-		m = @[name]
-		c = m[0]
-		n = Math.min c + delta, m[1]
-		if n != c
-			@[name] = immutable [ n, m[1]]
-		delta = @[name][0] - c
-	@['adjustMax'+caps] = (delta) ->
-		@[name] = @[name].plus [0, delta]
-		delta
-
-decorator ActiveEffects = ->
-	$.extend @, {
-		active: immutable $ [ ]
-		tickStatus: (context, dt) ->
-			@active.select('tick').call(context, dt) \
-				.map(Bling::reverse)
-				.flatten()
-		reactStatus: (context, action) ->
-			@active.select('react').call(context, action) \
-				.map(Bling::reverse)
-				.flatten()
-		addStatus: (status) ->
-			if Object.isFrozen @active
-				@active = $ @active.concat [ status ]
-			else @active.push status
-			@log "Added Status:", status.constructor.name
-		removeStatus: (status) ->
-			if ~(i = @active.indexOf status)
-				@active.splice i, 1
-				@log "Removed Status:", status.constructor.name
-	}
-
-decorator Spellbook = ->
-	$.extend @, {
-		spells: Object.create null
-		learn: (spell) ->
-			obj = Object.create null
-			obj[spell.name] = spell
-			@spells = $.inherit @spells, obj
-			@log "Learned spell:", spell.name
-		cast: (name, target = @target) ->
-			@target = target
-			unless spell = @spells[name]
-				@log "Unknown spell:", name
-			else if @currentMana < spell.cost
-				@log "Not enough mana for:", spell.name, ", need", spell.cost, "have", @currentMana
-			else
-				@log "Casting spell:", name
-				context = new Context @, {
-					self: @
-					target: @target
-				}
-				new Action.Stack(spell.effects...).process(context)
-			null
-	}
-
-decorator Logger = ->
-	$.extend @, {
-		log: (msg...) ->
-			n = @constructor.name
-			if @name
-				n += "("+@name+")"
-			$.log n+":", msg...
-	}
-
-class Context
+class ActionContext
 	constructor: (owner, targets) -> $.extend @,
 		owner: owner,
 		targets: targets = $.extend { owner: owner }, targets
@@ -114,47 +28,51 @@ class Context
 			return if $.is 'string', target then targets[target]
 			else target
 
-class Wizard extends Base
+class Unit extends Mixable
 	@has Logger
 	@has Position
+	@has InstanceList
+
+class Wizard extends Unit
 	@has ActiveEffects
-	@has Attribute 'hp', 100, 100
-	@has Attribute 'mana', 50, 50
+
+	$.type.register 'wizard', is: (o) -> $.isType Wizard, o
+
+	@has Attribute, 'str', 10, 25
+	@has Attribute, 'int', 22, 25
+	@has Attribute, 'dex', 15, 25
+
+	@has Attribute, 'hp', 0, 100
+	@has Attribute, 'mp', 0, 50
 	@has Spellbook
 
-	wizards = []
-	@tick = (dt) -> w.tick(dt) for w in wizards
+	@has Levels
 
 	constructor: (@name) ->
-		@addStatus new Status.MPS 1, Infinity # innate mana regen
+		@addInstance @
+		@addStatus new Status.MPS 1, Infinity # innate mp regen
 		@addStatus new Status.ARMOR 'skin', 10, Infinity
 		@target = null
-		wizards.push @
-
+		@adjustMp @adjustMaxMp @currentInt * 4
+		@adjustHp @adjustMaxHp @currentHp * 8
+	
 	destroy: ->
-		if ~(i = wizards.indexOf @)
-			wizards.splice i, 1
 		@target = null
+		@removeInstance @
 
 	tick: (dt) ->
-		context = new Context @, {
+		context = new ActionContext @, {
 			self: @
 			target: @target
 		}
 		new Action.Stack(@tickStatus(context, dt)...).process(context)
-		new Action.Stack(@active
-			.select('tick')
-			.call(context, dt) # get all the tick actions
-			.map(Bling::reverse)
-			.flatten()...
-		).process(context) # execute all the actions
 
 	react: (context, action) ->
 		@reactStatus(context, action)
 
 	toString: ->
 		effects = @active.select('constructor.name')
-		"Wizard(#{@name}) h:#{@currentHp.toFixed 0}/#{@maxHp} m:#{@currentMana.toFixed 0}/#{@maxMana} effects: #{effects.join ', '}"
+		"Wizard(#{@name}) h:#{@currentHp.toFixed 0}/#{@maxHp} m:#{@currentMp.toFixed 0}/#{@maxMp} effects: #{effects.join ', '}"
 
 if require.main is module
 	c = new Wizard('charlie')
@@ -170,7 +88,6 @@ if require.main is module
 	start = $.now
 	interval = $.interval 333, ->
 		start += (dt = $.now - start)
-		Wizard.tick dt
 		console.log(d.toString())
 		console.log(c.toString())
 
