@@ -1,67 +1,100 @@
 Bling = $ = require 'bling'
 $.extend $.global, require "./globals"
 
-mixin = (klass) ->
-	module.exports[klass.name] = klass
+#include "defines.h"
 
-mixin class Mixable
+MIXIN(Mixable) ->
 	@has = (f, args...) -> f.call @, args...
+	$.extend @::, $.EventEmitter()
 
-mixin class Position then constuctor: ->
-	getter @::, 'x', 'pos', 0
-	getter @::, 'y', 'pos', 1
-	getter @::, 'z', 'pos', 2
-	$.extend @::, {
+MIXIN(Position) ->
+	PROP('x', @pos[0])
+	PROP('y', @pos[1])
+	PROP('z', @pos[2])
+	$.extend @::,
 		pos: empty_zeros
-		moveTo: (pos) -> @pos = immutable pos
-		translate: (pos) -> @pos = immutable @pos.plus pos
-	}
+		moveTo: (pos) ->
+			COPY_ON_WRITE(@pos)
+			@pos = pos
+		translate: (pos) ->
+			COPY_ON_WRITE(@pos)
+			@pos = @pos.plus pos
 
-mixin class Attribute then constructor: (name, cur, max) ->
+MIXIN(Attribute) (name, cur, max) ->
 	caps = $.capitalize $.camelize name
-	getter @::, 'current'+caps, name, 0
-	getter @::, 'max'+caps, name, 1
-	@::[name] = immutable [cur, max]
+	PROP('current'+caps, @[name][0])
+	PROP('max'+caps, @[name][1])
+	@::[name] = FROZEN $ [cur, max]
 	@::['adjust'+caps] = (delta) ->
+		COPY_ON_WRITE(@[name])
 		m = @[name]
 		c = m[0]
-		n = Math.min c + delta, m[1]
-		if n != c
-			@[name] = immutable [ n, m[1]]
-		delta = @[name][0] - c
+		m[0] = CLAMP(c + delta, 0, m[1])
+		delta = m[0] - c
 	@::['adjustMax'+caps] = (delta) ->
-		@[name] = @[name].plus [0, delta]
+		COPY_ON_WRITE(@[name])
+		@[name][1] += delta
 		delta
 
-mixin class ActiveEffects then constructor: -> $.extend @::,
-	active: empty_bling
-	tickStatus: (context, dt) ->
-		result = []
-		for status in @active
-			for reaction in status.tick(context,dt)
-				result.push reaction
-		result
-	reactStatus: (context, action) ->
-		@active.select('react').call(context, action) \
-			.map(Bling::reverse)
-			.flatten()
-	addStatus: (status) ->
-		if Object.isFrozen @active
-			@active = $ @active.concat [ status ]
-		else @active.push status
-		@log "Added Status:", status.constructor.name
-	removeStatus: (status) ->
-		if ~(i = @active.indexOf status)
-			@active.splice i, 1
-			@log "Removed Status:", status.constructor.name
+#define MAP_ACTIVE(f,...) (__VA_ARGS__) -> t = []; (t.push r for r in s.f(__VA_ARGS__) for s in @active); t
+#define COPY_ON_WRITE(v) if Object.isFrozen v then v = v.slice(0)
 
-mixin class Spellbook then constructor: -> $.extend @::,
+MIXIN(ActiveEffects) -> $.extend @::,
+	active: empty_bling
+	tickStatus: MAP_ACTIVE(tick, context, dt)
+	reactStatus: MAP_ACTIVE(react, context, action)
+	addStatus: (status) ->
+		COPY_ON_WRITE(@active)
+		ARRAY_ADD(@active, status)
+		@
+	removeStatus: (status) ->
+		COPY_ON_WRITE(@active)
+		ARRAY_REMOVE(@active, status)
+		@
+
+MIXIN(Logger) -> $.extend @::,
+	log: $.logger "__FILE__:__LINE__"
+
+MIXIN(InstanceList) ->
+	instances = []
+	$.extend @::, {
+		addInstance: (t) ->
+			ARRAY_ADD(instances, t)
+			@
+		removeInstance: (t) ->
+			ARRAY_REMOVE(instances, t)
+			@
+		getInstance: (i) -> instances[i]
+	}
+
+MIXIN(Levels) -> $.extend @::,
+	xp:    FROZEN $ 0, 0
+	level: FROZEN $ 0, 0
+	adjustXp: (delta) ->
+		COPY_ON_WRITE(@xp)
+		if (xp = @xp[0] + delta) >= @xp[1]
+			@adjustLevel 1
+			@adjustMaxXp @xp[1]
+			xp = 0
+		@xp[0] = xp
+		@
+	adjustMaxXp: (delta) ->
+		COPY_ON_WRITE(@xp)
+		@xp[1] += delta
+		@
+	adjustLevel: (delta) ->
+		COPY_ON_WRITE(@level)
+		@level[0] = CLAMP(@level[0] + delta, 0, @level[1])
+		@
+
+MIXIN(Spellbook) -> $.extend @::,
 	spells: Object.create null
 	learn: (spell) ->
 		obj = Object.create null
 		obj[spell.name] = spell
 		@spells = $.inherit @spells, obj
 		@log "Learned spell:", spell.name
+		@
 	cast: (name, target = @target) ->
 		@target = target
 		unless spell = @spells[name]
@@ -75,33 +108,4 @@ mixin class Spellbook then constructor: -> $.extend @::,
 				target: @target
 			}
 			new Action.Stack(spell.effects...).process(context)
-		null
-
-mixin class Logger then constructor: -> $.extend @::,
-	log: (msg...) ->
-		n = @constructor.name
-		if @name
-			n += "("+@name+")"
-		$.log n+":", msg...
-
-mixin class InstanceList then constructor: ->
-	instances = []
-	$.extend @::, {
-		addInstance: (t) ->
-			if (i = instances.indexOf t) is -1
-				instances.push i
-		removeInstance: (t) ->
-			if (i = instances.indexOf t) is -1
-				instances.split i, 1
-		getInstance: (i) -> instances[i]
-	}
-
-mixin class Levels then constructor: -> $.extend @::,
-	xp: immutable $ 0, 0
-	level: immutable $ 0, 0
-	adjust
-	adjustXp: (delta) ->
-		oldLevel = @level[0]
-		if @xp[0] + delta >= @xp[1]
-			newLevel = oldLevel + 1
-			@adjustMaxXp @xp[1]
+		@
