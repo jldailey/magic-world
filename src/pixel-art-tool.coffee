@@ -1,3 +1,4 @@
+$ = require 'bling'
 
 pixelArtTool = (src, tw, th, cb) ->
 	htw = tw << 1
