@@ -52,6 +52,14 @@ class Action.PUSH extends Action
 $.type.register 'action',
 	is: is_action = (o) -> $.isType Action, o
 
+class Action.Context
+	constructor: (owner, targets) -> $.extend @,
+		owner: owner,
+		targets: targets = $.extend { owner: owner }, targets
+		get: (target) ->
+			return if $.is 'string', target then targets[target]
+			else target
+
 class Action.Stack
 	constructor: (items...) ->
 		items = $(items).filter is_action

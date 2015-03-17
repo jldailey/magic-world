@@ -20,14 +20,6 @@ class Spell
 	constructor: (@name, @cost, @effects...) ->
 		@effects.unshift new Action.MANA 'self', -@cost
 
-class ActionContext
-	constructor: (owner, targets) -> $.extend @,
-		owner: owner,
-		targets: targets = $.extend { owner: owner }, targets
-		get: (target) ->
-			return if $.is 'string', target then targets[target]
-			else target
-
 class Unit extends Mixable
 	@has Logger
 	@has Position
@@ -55,13 +47,13 @@ class Wizard extends Unit
 		@target = null
 		@adjustMp @adjustMaxMp @currentInt * 4
 		@adjustHp @adjustMaxHp @currentHp * 8
-	
+
 	destroy: ->
 		@target = null
 		@removeInstance @
 
 	tick: (dt) ->
-		context = new ActionContext @, {
+		context = new Action.Context @, {
 			self: @
 			target: @target
 		}
