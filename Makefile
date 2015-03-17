@@ -4,17 +4,15 @@ JS_FILES=$(shell ls src/*.coffee | sed -e 's/src/bin/' -e 's/coffee/js/')
 all: site $(JS_FILES)
 
 bin/%.js: src/%.coffee
-	coffee -o bin -c $<
+	mkdir -p bin && sed -e 's/# .*$$//' $< | cpp -w | coffee -sc > $@
 
-site: site/site.ugly.js
+site: site/site.ugly.js site/
 
 %.ugly.js: %.js
-	mkdir -p $(shell dirname $@)
-	uglify -s $< -o $@
+	mkdir -p $(shell dirname $@) && uglify -s $< -o $@ &> /dev/null
 
-site/site.js:
-	mkdir -p site
-	browserify bin/map.js > site/site.js
+site/site.js: ${JS_FILES}
+	mkdir -p $(shell dirname $@) && browserify bin/map.js bin/pixel-art-tool.js > site/site.js
 
-test:
-	${COFFEE} world.coffee
+test: all
+	(cd bin && node world.js)
