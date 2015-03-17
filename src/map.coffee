@@ -1,10 +1,12 @@
 $ = require 'bling'
 
-simpleTileGrid = """
+#include "defines.h"
+
+islandMap = """
 W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W.
 W. w1 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w2 w3 W.
 W. w4 g. g. g. C4 g8 g8 C3 g. g. g. g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
-W. w4 g. t1 g. g6 d1 d3 g4 g. g. t2 g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
+W. w4 g. g. g. g6 d1 d3 g4 g. g. g. g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
 W. w4 g. g. C4 g9 d4 d6 g4 g. g. g. g. g. g. g. g. g. g. g. g. g. g. g. w6 W.
 W. w4 g. g. g6 d1 c1 d6 g4 g. g. C4 g8 g8 g8 g8 g8 g8 g8 C3 g. g. g. g. w6 W.
 W. w4 g. g. g6 d4 d. d6 g4 g. g. g6 d1 d2 d2 d2 d2 d2 d3 g4 g. g. g. g. w6 W.
@@ -108,6 +110,7 @@ class Grid
 
 Rect = (x,y,w,h) -> return $.extend [x,y,w,h], {x,y,w,h}
 
+"""
 class Layer
 	constructor: (@rect, @tileset, data) ->
 		@grid = Grid.parse data
@@ -119,24 +122,40 @@ class Layer
 	removeLayer: (layer) ->
 		@layers.splice i, 1 unless ~(i = @layers.indexOf layer)
 	dirty: (x, y, w, h) ->
+"""
 		
 
 class Layer
-	constructor: (@x, @y, @tw, @th, data) ->
+	constructor: (dx, dy, @tw, @th, data) ->
 		@data = if $.is 'string', data then parseTileGridString data else data
-		@x *= @tw
-		@y *= @th
+		@x = dx
+		@y = dy
 		@w = @data[0].length * @tw
 		@h = @data.length * @th
+		@dirty_stack = []
+		$.log "creating Layer", @x, @y, @w, @h, data
 	draw: (map) ->
-		for i in [0...@w] by @tw
-			for j in [0...@h] by @th
-				map.drawTile @data[j/@th][i/@tw], @x+i, @y+j, @tw, @th
-	needsRedraw: (x, y, w, h) ->
-		return (@x < x < @x+@w and @y <  y < @y+@h) \
-			or (@x < x+w < @x+@w and @y < y < @y+@h)  \
-			or (@x < x < @x+@w and @y < y+h < @y+@h)  \
-			or (@x < x+w < @x+@w and @y < y+h < @y+@h)
+		for i in [@x...@x+@w] by @tw
+			for j in [@y...@y+@h] by @th
+				$.log "drawing", i, j
+				tx = Math.floor (i/@tw) - (@x/@tw)
+				ty = Math.floor (j/@th) - (@y/@th)
+				map.drawTile @data[ty][tx], @x+(tx*@tw), @y+(ty*@th), @tw, @th
+	redraw: (map) ->
+		while pair = @dirty_stack.shift()
+			[i, j] = pair
+			tx = Math.floor (i/@tw) - (@x/@tw)
+			ty = Math.floor (j/@th) - (@y/@th)
+			$.log "drawing (dirty)", i, j, tx, ty,
+			map.drawTile @data[ty][tx], @x+(tx*@tw), @y+(ty*@th), @tw, @th
+	dirty: (x, y, w, h) ->
+		for i in [x...x+w] by @tw
+			for j in [y...y+h] by @th
+				if (@x < i < @x+@w and @y < j < @y+@h)
+					@dirty_stack.push [i, j]
+					break
+		return @dirty_stack.length > 0
+
 
 class TileGrid
 	constructor: (data, @image, @tileset, @tw, @th) ->
@@ -154,41 +173,48 @@ class TileGrid
 		@layers.unshift layer
 		@
 	drawTile: (type, x, y, tw, th) ->
+		$.log "drawTile", type, x, y, tw, th
 		if type of colors
+			$.log "drawColor", colors[type]
 			@context.drawRect x, y, tw, th, colors[type]
-		if type of @tileset
-			# then draw the tile's image data
-			tile = @tileset[type]
-			@context.drawImage @image, tile..., x, y, tw, th
+		@tileset.draw @context, type, x, y, tw, th
 	draw: ->
 		start = $.now
 		[w, h, tw, th] = [@w, @h, @tw, @th]
+		$.log "filling primer color"
 		@context.fillStyle = '#ba8'
 		@context.fillRect 0, 0, w, h
+		$.log "drawing base tiles"
 		for i in [0...w/tw] by 1
 			for j in [0...h/th] by 1
-				tile = @data[j][i]
-				@drawTile tile, i*tw, j*th, tw, th
+				symbol = @data[j][i]
+				# @tileset.draw(@context, symbol, i, j)
+				@drawTile symbol, i*@tw, j*@th, @tw, @th
 		for layer in @layers
+			$.log "drawing layer..."
 			layer.draw(@)
 		$.log "frame time:", ($.now - start)
 		@
 	dirtyTile: (tx, ty) ->
-		@dirty_stack.push [ tx, ty ]
+		@dirty_stack.push [ tx, ty, @tw, @th ]
 		@redraw()
-	dirty: (x, y) ->
-		@dirtyTile Math.floor(x / @tw), Math.floor(y / @th)
+	dirty: (x, y, w, h) ->
+		@dirty_stack.push [ x, y, w, h ]
+		@redraw()
 	redraw: $.debounce 33, ->
 		dirty_layers = []
 		while @dirty_stack.length > 0
-			[i, j] = @dirty_stack.pop()
-			@drawTile @data[j][i], i*@tw, j*@th, @tw, @th
+			[i, j, w, h] = @dirty_stack.pop()
+			for x in [i...i+w] by @tw
+				for y in [j...j+h] by @th
+					tx = Math.floor x/@tw
+					ty = Math.floor y/@th
+					@drawTile @data[ty][tx], tx*@tw, ty*@th, @tw, @th
 			for layer in @layers
-				if layer.needsRedraw i*@tw, j*@tw, @tw, @th
-					if (dirty_layers.indexOf layer) is -1
-						dirty_layers.push layer
-		while dirty_layers.length > 0
-			dirty_layers.unshift().draw(@)
+				if layer.dirty i, j, w, h
+					dirty_layers.push layer
+		for layer in dirty_layers
+			layer.redraw @
 		@
 
 cacheImageData "./textures/tiles-tr2.png", (err, image) ->
@@ -202,19 +228,19 @@ cacheImageData "./textures/tiles-tr2.png", (err, image) ->
 			switch $.type poses
 				when "object"
 					for p,v of poses
-						$.log "Loading pose:", prefix+p, v
+						$.log "Registering pose:", prefix+p, v
 						@tiles[prefix+p] = v
 				when "array","bling"
-					$.log "Loading pose:", prefix, poses
+					$.log "Registering pose:", prefix, poses
 					@tiles[prefix] = poses
 				else $.log "Failed to load unknown type: ", $.type poses
 			@
-		draw: (context, symbol, tx, ty) ->
-			return unless symbol of @tiles
-			context.drawImage image, @tiles[symbol]..., tx*@tw, ty*@th, @tw, @th
+		draw: (context, symbol, dx, dy) ->
+			if @tiles[symbol]?.length > 0
+				context.drawImage image, @tiles[symbol]..., dx, dy, @tw, @th
 	
 	$.log "Creating new tileset..."
-	tileset = new TileSet()
+	tileset = new TileSet(32, 32)
 
 	$.log "Loading 'trees'..."
 	tileset.register 't', trees = {
@@ -249,23 +275,25 @@ cacheImageData "./textures/tiles-tr2.png", (err, image) ->
 	register_edge 'W', [0, 688, 1, 1] # underwater
 	register_edge 'o', [810, 0, 0, 0] # stone wall
 	register_edge 'O', [809, 240, 0, 0] # sand stone wall
+	register_edge 'f', [597, 470, 0, 0] # fireball
 
 	# heavy grass
 	tileset.register 'GG', [528, 80, 48, 48]
 
 	# the no-op tile
-	tileset.register 'nn': [0,0,0,0]
+	tileset.register 'nn', [0,0,0,0]
 
+	$.log "Loading corners..."
 	corners = { # the standard inner-corner layout
-		1: [ 0, 0, 8, 8 ]
-		2: [ 8, 0, 8, 8 ]
-		3: [ 0, 8, 8, 8 ]
-		4: [ 8, 8, 8, 8 ]
+		1: [ 0.5, 0.5, 13, 13 ]
+		2: [ 2.5, 0.5, 13, 13 ]
+		3: [ 0.5, 2.5, 13, 13 ]
+		4: [ 2.5, 2.5, 13, 13 ]
 	}
 	register_corner = (symbol, offset) ->
 		for corner, v of corners
 			tileset.register symbol+corner, $(v).plus(offset).toArray()
-	register_corner 'c', [ 576, 258, 0, 0 ]
+	register_corner 'c', [ 575, 257, 0, 0 ]
 	register_corner 'C', [ 560, 320, 0, 0 ]
 
 	class Sprite
@@ -283,9 +311,9 @@ cacheImageData "./textures/tiles-tr2.png", (err, image) ->
 			while @frame_left <= 0
 				@frame_left += @frame_dur
 				@frame_index = (@frame_index + 1) % @poses[@poseIndex].length
-		draw: (context, tx, ty) ->
+		draw: (context, dx, dy) ->
 			symbol = @prefix+@poseIndex+@frame_index
-			tileset.draw context, symbol, tx, ty
+			tileset.draw context, symbol, dx, dy
 		setPose: (@poseIndex) ->
 		register: (prefix, tileset) ->
 			@prefix = prefix
@@ -294,6 +322,7 @@ cacheImageData "./textures/tiles-tr2.png", (err, image) ->
 				for v,i in u
 					tileset.register prefix+p+i, v
 
+	$.log "Loading blueman..."
 	new Sprite('blueman', 100, {
 		2:   [ [257, 531, 32, 32],[289, 531, 32, 32],[321, 531, 32, 32] ]
 		4:   [ [257, 563, 32, 32],[289, 563, 32, 32],[321, 563, 32, 32] ]
@@ -301,19 +330,15 @@ cacheImageData "./textures/tiles-tr2.png", (err, image) ->
 		8:   [ [257, 627, 32, 32],[289, 627, 32, 32],[321, 627, 32, 32] ]
 	}).register('p', tileset)
 
-	# football player: [ 645, 529, 64, 64 ], 4x4 grid
+	# football player: [ 645, 529, 64, 64 ], 4x4x64 grid
 
 	# lamp post
 	tileset.register 'lp', [ 777, 192, 32, 48 ]
 
 	if err then console.error err
 	else
-		window.map = new TileGrid(simpleTileGrid, image, tileset, 32, 32)
-		window.map.addLayer new Layer(13, 2, 48, 48, """
-			GG GG GG
-			GG GG GG
-			GG GG GG
-		""")
+		window.map = new TileGrid(islandMap, image, tileset, 32, 32)
+		window.map.addLayer new Layer 100, 100, 32, 32, """t1 t2"""
 		window.map.draw()
 		# draw a blemish
 		map.context.drawRect 10, 10, 4, 4, 'blue'
@@ -321,4 +346,4 @@ cacheImageData "./textures/tiles-tr2.png", (err, image) ->
 		map.canvas.bind 'click', (evt) ->
 			x = evt.clientX + window.scrollX
 			y = evt.clientY + window.scrollY
-			map.dirty(x, y)
+			map.dirty(x, y, 32, 32)
