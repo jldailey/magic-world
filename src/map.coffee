@@ -1,3 +1,4 @@
+$ = require 'bling'
 
 simpleTileGrid = """
 W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W. W.
