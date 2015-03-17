@@ -12,7 +12,7 @@ site: site/site.ugly.js site/
 	mkdir -p $(shell dirname $@) && uglify -s $< -o $@ &> /dev/null
 
 site/site.js: ${JS_FILES}
-	mkdir -p $(shell dirname $@) && browserify bin/map.js bin/pixel-art-tool.js > site/site.js
+	mkdir -p $(shell dirname $@) && browserify bin/map.js bin/pixel-art-tool.js -i fs -i buffer > site/site.js
 
 test: all
 	(cd bin && node world.js)
