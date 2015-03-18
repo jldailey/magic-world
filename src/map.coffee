@@ -217,7 +217,7 @@ class TileGrid
 			layer.redraw @
 		@
 
-cacheImageData "./textures/tiles-tr2.png", (err, image) ->
+cacheImageData "./textures/tiles.png", (err, image) ->
 	if err
 		return console.error err
 
