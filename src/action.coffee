@@ -1,10 +1,14 @@
 $ = require 'bling'
 empty = Object.freeze []
 
+#include "defines.h"
+
 module.exports = class Action
 	constructor: (@target) ->
+		@started = false
 	begin: (context) ->
-		context.get(@target).react(context, @)
+		@started = true
+		context.get(@target)?.react?(context, @)
 	end: (context) -> null
 	log: (msg...) ->
 		$.log @constructor.name + ":", msg...
@@ -48,6 +52,10 @@ class Action.PUSH extends Action
 		owner = context.get('owner')
 		target = context.get(@target)
 		delta = target.pos.minus owner.pos
+class Action.ECHO extends Action
+	constructor: (@msg) -> super null
+	end: (context) ->
+		console.log "ECHO:", @msg
 
 $.type.register 'action',
 	is: is_action = (o) -> $.isType Action, o
@@ -60,22 +68,65 @@ class Action.Context
 			return if $.is 'string', target then targets[target]
 			else target
 
-class Action.Stack
-	constructor: (items...) ->
-		items = $(items).filter is_action
-		$.extend @,
-			push: (x) -> items.unshift x
-			pushAll: (a) ->
-				return unless $.is 'array', a
-				a = a.filter is_action
-				(items.unshift a.pop()) while a.length
-			pop:      -> items.shift()
-			isEmpty:  -> !items.length
-			log: (m...) -> $.log "Action.Stack:", m...
-			process:  (context) ->
-				if items.length > 0
-					@log "processing items:", $(items).select('constructor.name').weave($(items).map(context.get).select('name')).join ' '
-				while not @isEmpty()
-					item = items.pop()
-					@pushAll reactions = item.begin(context)
-					item.end(context)
+#define LEFT(i)  (2*i+1)
+#define RIGHT(i) (2*i+2)
+#define PARENT(i) ((i-1)/2)
+class Action.Heap
+	constructor: (@capacity, @score = (x) -> x.nice ) ->
+		@clear()
+	clear: ->
+		@data = new Array(@capacity)
+		@length = 0
+	peek: -> @data[0]
+	pop: -> @remove(0)
+	remove: (i) ->
+		if @length <= i
+			return null
+		ret = @data[i]
+		@data[i] = @data[@length - 1]
+		@data[@length - 1] = null
+		@length -= 1
+		@trickleDown(i)
+		ret
+	insert: (item) ->
+		if @length is 0
+			@data[0] = item
+			@length++
+		else if @length <= @capacity
+			@data[n = @length++] = item
+			@bubbleUp(n)
+		else @.log "Heap ignoring insert because it's full...", item
+		@
+	trickleDown: (i) ->
+		si = @score(@data[i])
+		li = LEFT(i)
+		sli = @score(@data[li])
+		ri = RIGHT(i)
+		sri = @score(@data[ri])
+		if sri > sli < si
+			SWAP(@data[li], @data[i])
+			@trickleDown li
+		else if sli > sri < si
+			SWAP(@data[ri], @data[i])
+			@trickleDown ri
+	bubbleUp: (i) ->
+		p = PARENT(i)
+		while i > 0 and @score(@data[i]) < @score(@data[p])
+			SWAP(@data[i], @data[p])
+			i = p
+			p = PARENT(i)
+
+heap = new Action.Heap 1000, (obj) -> obj?.nice ? 0
+Action.debug = -> console.log heap.data.slice(0,heap.length)
+Action.clear = -> heap.clear()
+Action.enqueue = (item) -> heap.insert item
+Action.current = -> heap.peek()
+Action.execute = (context) ->
+	while action = heap.peek()
+		if action.started
+			action.end context
+			heap.pop()
+		else
+			reactions = action.begin context
+			if reactions?.length?
+				heap.insert(r) for r in reactions

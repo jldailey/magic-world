@@ -3,9 +3,12 @@ $.extend $.global, require "./globals"
 
 #include "defines.h"
 
-MIXIN(Mixable) ->
+module.exports.Mixable = class Mixable extends $.EventEmitter
 	@has = (f, args...) -> f.call @, args...
-	$.extend @::, $.EventEmitter()
+	constructor: -> super @
+
+MIXIN(Logger) -> $.extend @::,
+	log: -> $.log @constructor.name + (if @name? then "(#{@name})" else ""), arguments...
 
 MIXIN(Position) ->
 	PROP('x', @pos[0])
@@ -20,44 +23,23 @@ MIXIN(Position) ->
 			COPY_ON_WRITE(@pos)
 			@pos = @pos.plus pos
 
+
 MIXIN(Attribute) (name, cur, max) ->
 	caps = $.capitalize $.camelize name
-	PROP('current'+caps, @[name][0])
-	PROP('max'+caps, @[name][1])
-	@::[name] = FROZEN $ [cur, max]
-	@::['adjust'+caps] = (delta) ->
-		COPY_ON_WRITE(@[name])
-		m = @[name]
-		c = m[0]
-		m[0] = CLAMP(c + delta, 0, m[1])
-		delta = m[0] - c
-	@::['adjustMax'+caps] = (delta) ->
-		COPY_ON_WRITE(@[name])
-		@[name][1] += delta
-		delta
-
-#define MAP_ACTIVE(f,...) (__VA_ARGS__) -> t = []; (t.push r for r in s.f(__VA_ARGS__) for s in @active); t
-#define COPY_ON_WRITE(v) if Object.isFrozen v then v = v.slice(0)
+	COW_ARRAY(name, cur, max)
+	COW_PROP('current'+caps, @[name], 0, 0, @['max'+caps])
+	COW_PROP('max'+caps,     @[name], 1, 0, 10000)
 
 MIXIN(ActiveEffects) -> $.extend @::,
 	active: empty_bling
-	tickStatus: MAP_ACTIVE(tick, context, dt)
-	reactStatus: MAP_ACTIVE(react, context, action)
-	addStatus: (status) ->
-		COPY_ON_WRITE(@active)
-		ARRAY_ADD(@active, status)
-		@
-	removeStatus: (status) ->
-		COPY_ON_WRITE(@active)
-		ARRAY_REMOVE(@active, status)
-		@
-
-MIXIN(Logger) -> $.extend @::,
-	log: $.logger "__FILE__:__LINE__"
+	tickStatus: FLAT_MAP(@active, tick, context, dt)
+	reactStatus: FLAT_MAP(@active, react, context, action)
+	addStatus: COW_ARRAY_ADD(@active)
+	removeStatus: COW_ARRAY_REMOVE(@active)
 
 MIXIN(InstanceList) ->
 	instances = []
-	$.extend @::, {
+	$.extend @, {
 		addInstance: (t) ->
 			ARRAY_ADD(instances, t)
 			@
@@ -67,25 +49,21 @@ MIXIN(InstanceList) ->
 		getInstance: (i) -> instances[i]
 	}
 
-MIXIN(Levels) -> $.extend @::,
-	xp:    FROZEN $ 0, 0
-	level: FROZEN $ 0, 0
-	adjustXp: (delta) ->
-		COPY_ON_WRITE(@xp)
-		if (xp = @xp[0] + delta) >= @xp[1]
-			@adjustLevel 1
-			@adjustMaxXp @xp[1]
-			xp = 0
-		@xp[0] = xp
-		@
-	adjustMaxXp: (delta) ->
-		COPY_ON_WRITE(@xp)
-		@xp[1] += delta
-		@
-	adjustLevel: (delta) ->
-		COPY_ON_WRITE(@level)
-		@level[0] = CLAMP(@level[0] + delta, 0, @level[1])
-		@
+MIXIN(Levels) ->
+	COW_ARRAY('xp', 0, 5)
+	COW_ARRAY('level', 1, 10000)
+	$.defineProperty @::, 'currentXp',
+		get: -> @xp[0]
+		set: (xp) ->
+			COPY_ON_WRITE(@xp)
+			while xp >= @xp[1]
+				@currentLevel += 1
+				xp -= @xp[1]
+				@xp[1] <<= 1 # double the max xp
+			@xp[0] = CLAMP(xp, 0, @xp[1])
+			@
+	COW_PROP('maxXp', @xp, 1, 0, Infinity)
+	COW_PROP('currentLevel', @level, 0, 0, 10000)
 
 MIXIN(Spellbook) -> $.extend @::,
 	spells: Object.create null
@@ -103,9 +81,8 @@ MIXIN(Spellbook) -> $.extend @::,
 			@log "Not enough mp for:", spell.name, "need", spell.cost, "have", @currentMp
 		else
 			@log "Casting spell:", name
-			context = new ActionContext @, {
+			Action.enqueue spell.effects, new Action.Context @, {
 				self: @
 				target: @target
 			}
-			new Action.Stack(spell.effects...).process(context)
 		@
