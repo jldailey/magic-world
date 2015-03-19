@@ -2,7 +2,7 @@ COFFEE=./node_modules/.bin/coffee
 UGLIFY=./node_modules/.bin/uglify
 BROWSERIFY=./node_modules/.bin/browserify
 MOCHA=./node_modules/.bin/mocha
-MOCHA_OPTS=--compilers coffee:coffee-script/register -R spec
+MOCHA_OPTS=--compilers coffee:coffee-script/register -R spec --bail
 JS_FILES=$(shell ls src/*.coffee | sed -e 's/src/bin/' -e 's/coffee/js/')
 
 all: site $(JS_FILES) image
