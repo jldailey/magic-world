@@ -4,6 +4,7 @@ Status = require './status'
 $.extend $.global, require "./globals"
 $.extend $.global, require "./mixins"
 
+#include "defines.h"
 
 # quick ES6 shim for Map
 unless global.Map
@@ -65,6 +66,16 @@ class Wizard extends Unit
 	toString: ->
 		effects = @active.select('constructor.name')
 		"Wizard(#{@name}) h:#{@currentHp.toFixed 0}/#{@maxHp} m:#{@currentMp.toFixed 0}/#{@maxMp} effects: #{effects.join ', '}"
+
+class World extends Mixable
+	@has ActiveEffects
+
+	constructor: ->
+		@map = new TileGrid()
+		@units = []
+	addUnit: ARRAY_ADDER(@units, u)
+	removeUnit: ARRAY_REMOVER(@units, u)
+		
 
 if require.main is module
 	c = new Wizard('charlie')

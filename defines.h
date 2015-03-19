@@ -5,7 +5,9 @@
 #define FROZEN Object.freeze
 #define CLAMP(x,m,n) (Math.min n, Math.max m, x)
 #define ARRAY_ADD(a,x) (if (a.indexOf x) is -1 then a.push x)
+#define ARRAY_ADDER(a) (x) -> ARRAY_ADD(a,x)
 #define ARRAY_REMOVE(a,x) (if ~(i = a.indexOf x) then a.splice i, 1)
+#define ARRAY_REMOVER(a) (x) -> ARRAY_REMOVE(a,x)
 #define DEBUG(...) (console.log __FILE__+":"+__LINE__, __VA_ARGS__)
 #define COPY_ON_WRITE(v) (if Object.isFrozen v then v = v.slice 0)
 #define FLAT_MAP(a,f,...) (__VA_ARGS__) -> $(r for r in s.f(__VA_ARGS__) for s in a).flatten()

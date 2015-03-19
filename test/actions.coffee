@@ -12,10 +12,13 @@ describe "Action Heap", ->
 		assert.equal Action.current().msg, 7
 	it "executes items in the heap", ->
 		Action.clear()
-		Action.debug()
+		output = ""
+		class Action.ECHO extends Action
+			constructor: (@msg) -> super null
+			end: (context) ->
+				output += @msg
 		echo = (msg) -> new Action.ECHO msg
 		Action.enqueue echo "one"
-		Action.debug()
 		Action.enqueue echo "two"
-		Action.debug()
 		Action.execute(new Action.Context null, { })
+		assert.equal output, "onetwo"

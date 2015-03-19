@@ -3,8 +3,20 @@ $.extend $.global, require "./globals"
 
 #include "defines.h"
 
+compose = (f, g) -> ->
+	f.apply this, arguments
+	g.apply this, arguments
+
+#define MERGE(a,b)  if ($.is 'function', b) and ($.is 'function', a) then a = compose (a),(b) else a = b
+
 module.exports.Mixable = class Mixable extends $.EventEmitter
-	@has = (f, args...) -> f.call @, args...
+	@has = (f, args...) ->
+		class Dummy
+		f.call Dummy, args...
+		for k,v of Dummy
+			MERGE(@[k],v)
+		for k,v of Dummy::
+			MERGE(@::[k],v)
 	constructor: -> super @
 
 MIXIN(Logger) -> $.extend @::,
@@ -22,7 +34,6 @@ MIXIN(Position) ->
 		translate: (pos) ->
 			COPY_ON_WRITE(@pos)
 			@pos = @pos.plus pos
-
 
 MIXIN(Attribute) (name, cur, max) ->
 	caps = $.capitalize $.camelize name
