@@ -10,13 +10,12 @@ Math.sign = (n) ->
 module.exports = class Status
 	constructor: (@sec) -> @ms = @sec * 1000
 	isDone: -> @ms <= 0
-	tick: (context, dt) ->
-		@ms -= dt
+	react: (context, action) ->
+		ret = $()
+		@ms -= action.dt ? 0
 		if @sec > 0 and @ms <= 0
-			$ [ new Action.ENDSTATUS 'owner', @ ]
-		else
-			$ [ ]
-	react: (context, action) -> $ []
+			ret.push new Action.ENDSTATUS 'owner', @
+		ret
 	log: (msg...) -> $.log "Status."+@constructor.name+":", msg...
 
 class Status.SPEED extends Status
@@ -39,16 +38,16 @@ class Status.ARMOR extends Status
 
 class Status.HPS extends Status
 	constructor: (@hps, sec) -> super sec
-	tick: (context, dt) ->
-		super(context, dt).push new Action.HEAL 'owner', @hps * (dt / 1000.0)
+	react: (context, action) ->
+		super(context, action).push new Action.HEAL 'owner', @hps * ((action.dt ? 0) / 1000.0)
 
 class Status.MPS extends Status
 	constructor: (@mps, sec) -> super sec
-	tick: (context, dt) ->
-		super(context, dt).push new Action.MANA 'owner', @mps * (dt / 1000)
+	react: (context, action) ->
+		super(context, action).push new Action.MANA 'owner', @mps * ((action.dt ? 0) / 1000.0)
 
 class Status.DPS extends Status
 	constructor: (@dps, @type, @slot, sec) -> super sec
-	tick: (context, dt) ->
-		super(context, dt).push new Action.DAMAGE 'owner', @type, @slot, @dps * (dt / 1000)
+	react: (context, action) ->
+		super(context, action).push new Action.DAMAGE 'owner', @type, @slot, @dps * ((action.dt ? 0) / 1000.0)
 

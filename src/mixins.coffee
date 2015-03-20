@@ -3,90 +3,111 @@ $.extend $.global, require "./globals"
 
 #include "defines.h"
 
-compose = (f, g) -> ->
-	f.apply this, arguments
-	g.apply this, arguments
+compose = (f, g) ->
+	return if typeof f is typeof g is 'function'
+		->
+			f.apply this, arguments
+			g.apply this, arguments
+	else g
 
-#define MERGE(a,b)  if ($.is 'function', b) and ($.is 'function', a) then a = compose (a),(b) else a = b
+merge = (a, b) ->
+	for k in $.keysOf(b)
+		continue if k is 'constructor'
+		desc = Object.getOwnPropertyDescriptor(b, k)
+		if not desc?
+			a[k] = compose a[k], b[k]
+		else if 'value' of desc
+			a[k] = compose a[k], desc.value
+		else if ('get' of desc) or ('set' of desc)
+			Object.defineProperty a, k, desc
 
-module.exports.Mixable = class Mixable extends $.EventEmitter
-	@has = (f, args...) ->
-		class Dummy
-		f.call Dummy, args...
-		for k,v of Dummy
-			MERGE(@[k],v)
-		for k,v of Dummy::
-			MERGE(@::[k],v)
-	constructor: -> super @
+module.exports.Mixable = class Mixable
+	@has = (mixin, args...) ->
+		o = (mixin args...)
+		# $.log "creating mix-in", o.name
+		if o?
+			# $.log "merging prototype fields..."
+			merge(@::, o::)
+			# $.log "merging static fields..."
+			merge(@, o)
+			if o::constructor isnt Function
+				# $.log "adding constructor to mixins hook..."
+				@mixins or= $.hook()
+				@mixins.append o::constructor
 
-MIXIN(Logger) -> $.extend @::,
-	log: -> $.log @constructor.name + (if @name? then "(#{@name})" else ""), arguments...
+	constructor: ->
+		@constructor.mixins?.apply @, arguments
+	destroy: -> null
 
-MIXIN(Position) ->
-	PROP('x', @pos[0])
-	PROP('y', @pos[1])
-	PROP('z', @pos[2])
-	$.extend @::,
-		pos: empty_zeros
-		moveTo: (pos) ->
-			COPY_ON_WRITE(@pos)
-			@pos = pos
-		translate: (pos) ->
-			COPY_ON_WRITE(@pos)
-			@pos = @pos.plus pos
+MIXIN(Logger)
+	log: (log = $.log) ->
+		log @constructor.name + (if @name? then "(#{@name})" else ""), arguments...
 
-MIXIN(Attribute) (name, cur, max) ->
+MIXIN(Position)
+	constructor: ->
+		@pos = $ 0, 0, 0
+	PROP('x', @pos, 0, -Infinity, Infinity)
+	PROP('y', @pos, 1, -Infinity, Infinity)
+	PROP('z', @pos, 2, -Infinity, Infinity)
+	moveTo:    (pos) -> @pos = $ pos
+	translate: (pos) -> @pos = @pos.plus pos
+
+MIXIN(Attribute, name, cur, max)
+	constructor: ->
+		@[name] = $ cur, max
 	caps = $.capitalize $.camelize name
-	COW_ARRAY(name, cur, max)
-	COW_PROP('current'+caps, @[name], 0, 0, @['max'+caps])
-	COW_PROP('max'+caps,     @[name], 1, 0, 10000)
+	PROP('max'+caps,     @[name], 1, 0, 10000)
+	PROP('current'+caps, @[name], 0, 0, @['max'+caps])
+	@::['adjust'+caps] = (delta, overflow) ->
+		expected = @[name][0] + delta
+		@['current'+caps] += delta
+		$.log 'adjust'+caps, 'delta', delta, 'expected', expected, 'result', @[name][0]
+		if @[name][0] < expected
+			overflow?.call @, (expected - @[name][0])
 
-MIXIN(ActiveEffects) -> $.extend @::,
-	active: empty_bling
-	tickStatus: FLAT_MAP(@active, tick, context, dt)
-	reactStatus: FLAT_MAP(@active, react, context, action)
-	addStatus: COW_ARRAY_ADD(@active)
-	removeStatus: COW_ARRAY_REMOVE(@active)
+MIXIN(ActiveEffects)
+	constructor: ->
+		@active = $()
+	react: FLAT_MAP(@active, react, context, action)
+	addStatus: SET_ADDER(@active)
+	removeStatus: SET_REMOVER(@active)
 
-MIXIN(InstanceList) ->
+MIXIN(InstanceList)
+	constructor: ->
+		SET_ADD(instances, @)
+	destroy: ->
+		SET_REMOVE(instances, @)
 	instances = []
-	$.extend @, {
-		addInstance: (t) ->
-			ARRAY_ADD(instances, t)
-			@
-		removeInstance: (t) ->
-			ARRAY_REMOVE(instances, t)
-			@
-		getInstance: (i) -> instances[i]
-	}
+	$.log "adding instances to ", @
+	@addInstance = (t) ->
+		SET_ADD(instances, t)
+		@
+	@removeInstance = (t) ->
+		SET_REMOVE(instances, t)
+		@
+	@mapInstances = (f) -> instances.map(f)
 
-MIXIN(Levels) ->
-	COW_ARRAY('xp', 0, 5)
-	COW_ARRAY('level', 1, 10000)
-	$.defineProperty @::, 'currentXp',
-		get: -> @xp[0]
-		set: (xp) ->
-			COPY_ON_WRITE(@xp)
-			while xp >= @xp[1]
-				@currentLevel += 1
-				xp -= @xp[1]
-				@xp[1] <<= 1 # double the max xp
-			@xp[0] = CLAMP(xp, 0, @xp[1])
-			@
-	COW_PROP('maxXp', @xp, 1, 0, Infinity)
-	COW_PROP('currentLevel', @level, 0, 0, 10000)
+MIXIN(Levels)
+	constructor: ->
+	@has Attribute, 'xp', 0, 5
+	@has Attribute, 'level', 1, Infinity
+	gainXP: (delta) ->
+		@adjustXp delta, (overflow) ->
+			@gainLevel()
+			@maxXp *= 2
+	gainLevel: (delta) ->
+		@currentLevel += 1
 
-MIXIN(Spellbook) -> $.extend @::,
-	spells: Object.create null
+MIXIN(Spellbook)
+	constructor: ->
+		@spells = new Map()
 	learn: (spell) ->
-		obj = Object.create null
-		obj[spell.name] = spell
-		@spells = $.inherit @spells, obj
+		@spells.set(spell.name, spell)
 		@log "Learned spell:", spell.name
 		@
 	cast: (name, target = @target) ->
 		@target = target
-		unless spell = @spells[name]
+		unless spell = @spells.get(name)
 			@log "Unknown spell:", name
 		else if @currentMp < spell.cost
 			@log "Not enough mp for:", spell.name, "need", spell.cost, "have", @currentMp
