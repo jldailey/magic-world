@@ -9,7 +9,16 @@ collect_log_output = (f) ->
 	$.log.out = (a...) -> captured.push a
 	f()
 	$.log.out = save
-	return (line.join ' ' for line in captured).join '\n'
+	try return output = (line.join ' ' for line in captured).join '\n'
+	finally console.log "OUTPUT:", output
+
+describe "Mixable", ->
+	describe "mixing methods", ->
+		class C extends Mixable
+			@has -> class A then react: ->
+			@has -> class B then react: ->
+
+		assert $.is 'function', new C().react
 
 describe "Logger", ->
 	it "adds a log method to a class", ->
@@ -90,7 +99,6 @@ describe "ActiveEffects", ->
 		@has ActiveEffects
 
 	class FakeStatus
-		tick: (context, dt) -> [dt]
 		react:(context, action) -> [action]
 
 	describe ".active", ->
@@ -108,29 +116,25 @@ describe "ActiveEffects", ->
 			assert.equal e.active.length, 1
 			e.removeStatus s
 			assert.equal e.active.length, 0
-		it "can .tickStatus", ->
+		it "can .react", ->
 			s = new FakeStatus()
 			e = new E()
 			e.addStatus(s)
-			assert.deepEqual e.tickStatus({}, 12), [12]
-		it "can .reactStatus", ->
-			s = new FakeStatus()
-			e = new E()
-			e.addStatus(s)
-			assert.deepEqual e.reactStatus({}, 42), [42]
+			assert.deepEqual e.react({}, 42), [42]
 
 describe "InstanceList", ->
+	$.log "creating I"
 	class I extends Mixable
+		$.log "applying InstanceList to I"
 		@has InstanceList
-		constructor: ->
-			I.addInstance @
+		$.log "applied"
+
 	it "provides a global instance list", ->
 		a = new I()
 		b = new I()
-		assert.equal a, I.getInstance(0)
-		assert.equal b, I.getInstance(1)
+		assert.deepEqual I.mapInstances($.identity), [ a, b ]
 		I.removeInstance a
-		assert.equal b, I.getInstance(0)
+		assert.deepEqual I.mapInstances($.identity), [ b ]
 
 describe "Levels", ->
 	class L extends Mixable
