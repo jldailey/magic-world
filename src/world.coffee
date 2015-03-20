@@ -7,15 +7,6 @@ $.extend $.global, require "./mixins"
 #include "defines.h"
 
 # quick ES6 shim for Map
-unless global.Map
-	class Map
-		constructor: ->
-			data = Object.create null
-			$.extend @,
-				set: (k,v) -> data[k] = v
-				get: (k) -> data[k]
-				has: (k) -> k of data
-				keys: -> Object.keys data
 
 class Spell
 	constructor: (@name, @cost, @effects...) ->
@@ -26,10 +17,11 @@ class Unit extends Mixable
 	@has Position
 	@has InstanceList
 
-class Wizard extends Unit
+class Hero extends Unit
 	@has ActiveEffects
+	@has Symbol, '@'
 
-	$.type.register 'wizard', is: (o) -> $.isType Wizard, o
+	$.type.register 'hero', is: (o) -> $.isType Wizard, o
 
 	@has Attribute, 'str', 10, 25
 	@has Attribute, 'int', 22, 25
@@ -42,7 +34,6 @@ class Wizard extends Unit
 	@has Levels
 
 	constructor: (@name) ->
-		@addInstance @
 		@addStatus new Status.MPS 1, Infinity # innate mp regen
 		@addStatus new Status.ARMOR 'skin', 10, Infinity
 		@target = null
@@ -51,31 +42,18 @@ class Wizard extends Unit
 
 	destroy: ->
 		@target = null
-		@removeInstance @
-
-	tick: (dt) ->
-		context = new Action.Context @, {
-			self: @
-			target: @target
-		}
-		new Action.Stack(@tickStatus(context, dt)...).process(context)
-
-	react: (context, action) ->
-		@reactStatus(context, action)
 
 	toString: ->
 		effects = @active.select('constructor.name')
-		"Wizard(#{@name}) h:#{@currentHp.toFixed 0}/#{@maxHp} m:#{@currentMp.toFixed 0}/#{@maxMp} effects: #{effects.join ', '}"
+		"Hero(#{@name}) h:#{@currentHp.toFixed 0}/#{@maxHp} m:#{@currentMp.toFixed 0}/#{@maxMp} effects: #{effects.join ', '}"
 
 class World extends Mixable
 	@has ActiveEffects
-
 	constructor: ->
 		@map = new TileGrid()
 		@units = []
-	addUnit: ARRAY_ADDER(@units, u)
-	removeUnit: ARRAY_REMOVER(@units, u)
-		
+	addUnit: SET_ADDER(@units)
+	removeUnit: SET_REMOVER(@units)
 
 if require.main is module
 	c = new Wizard('charlie')
