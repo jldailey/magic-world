@@ -22,3 +22,17 @@ describe "Action Heap", ->
 		Action.enqueue echo "two"
 		Action.execute(new Action.Context null, { })
 		assert.equal output, "onetwo"
+
+describe "Action.Context", ->
+	describe "stores in-flight information about an action as it happens", ->
+	it "has an owner", ->
+		c = new Action.Context( {name: 'Joe' }, { })
+		assert.equal c.owner.name, "Joe"
+	describe ".get(name)", ->
+		it "can reference other entities", ->
+			c = new Action.Context( joe = { name: 'Joe' }, {
+				self: joe
+				target: { name: 'Jill' }
+			})
+			assert.equal c.get('owner').name, 'Joe'
+			assert.equal c.get('target').name, 'Jill'

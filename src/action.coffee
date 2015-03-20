@@ -5,53 +5,62 @@ empty = Object.freeze []
 
 module.exports = class Action
 	constructor: (@target) ->
-		@started = false
+		@started = null
+		@trace = false
 	begin: (context) ->
-		@started = true
+		@started = $.now
 		context.get(@target)?.react?(context, @)
-	end: (context) -> null
+	end: (context) ->
+		$.log "Action.#{@constructor.name} trace took #{$.now - @started}ms."
 	log: (msg...) ->
 		$.log @constructor.name + ":", msg...
 class Action.IDLE extends Action
 	constructor: (target, @dt) -> super target
-	end: (context) ->
-		@log "Idling for #{@dt}ms..."
 class Action.MOVE extends Action
 	constructor: (target, @from, @to) -> super target
 	end: (context) ->
 		@log "Moving #{@target} to #{@to}"
 		context.get(@target).moveTo @to
+		super(context)
 class Action.HEAL extends Action
 	constructor: (target, @health) -> super target
 	end: (context) ->
 		@log "Healing #{@target} by #{@health.toFixed 2}"
 		context.get(@target).adjustHp @health
+		super(context)
 class Action.MANA extends Action
 	constructor: (target, @mana) -> super target
 	end: (context) ->
 		if (ret = context.get(@target).adjustMana @mana) > 0
 			@log "Mana increasing on #{@target} by #{ret.toFixed 2}"
+		super(context)
 class Action.DAMAGE extends Action
 	constructor: (target, @type, @slot, @damage) -> super target
 	end: (context) ->
 		@log "Hurting #{@target} (#{context.get(@target).name}) by #{@damage} hp"
 		context.get(@target).adjustHp -1 * @damage
+		super(context)
 class Action.ADDSTATUS extends Action
 	constructor: (target, @status) -> super target
 	end: (context) ->
 		@log "Adding status #{@status.constructor.name} to #{@target}"
 		context.get(@target).addStatus @status
+		super(context)
 class Action.ENDSTATUS extends Action
 	constructor: (target, @status) -> super target
 	end: (context) ->
 		@log "Removing status #{@status.constructor.name} from #{@target}"
 		context.get(@target).removeStatus @status
+		super(context)
 class Action.PUSH extends Action
-	constructor: (target, @dir, @dist) -> super target
+	constructor: (target, @dist) -> super target
 	end: (context) ->
 		owner = context.get('owner')
 		target = context.get(@target)
 		delta = target.pos.minus owner.pos
+		delta = delta.normalize().scale(@dist)
+		target.translate(delta)
+		super(context)
 class Action.ECHO extends Action
 	constructor: (@msg) -> super null
 	end: (context) ->
@@ -116,7 +125,7 @@ class Action.Heap
 			i = p
 			p = PARENT(i)
 
-heap = new Action.Heap 1000, (obj) -> obj?.nice ? 0
+heap = new Action.Heap 5000, (obj) -> obj?.nice ? 0
 Action.debug = -> console.log heap.data.slice(0,heap.length)
 Action.clear = -> heap.clear()
 Action.enqueue = (item) -> heap.insert item

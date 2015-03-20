@@ -10,7 +10,7 @@ collect_log_output = (f) ->
 	f()
 	$.log.out = save
 	try return output = (line.join ' ' for line in captured).join '\n'
-	finally console.log "OUTPUT:", output
+	# finally console.log "OUTPUT:", output
 
 describe "Mixable", ->
 	describe "mixing methods", ->
@@ -123,11 +123,8 @@ describe "ActiveEffects", ->
 			assert.deepEqual e.react({}, 42), [42]
 
 describe "InstanceList", ->
-	$.log "creating I"
 	class I extends Mixable
-		$.log "applying InstanceList to I"
 		@has InstanceList
-		$.log "applied"
 
 	it "provides a global instance list", ->
 		a = new I()
@@ -143,17 +140,20 @@ describe "Levels", ->
 	it "adds an 'xp' attribute", ->
 		a = new L()
 		assert.equal a.currentXp, 0
+		assert.equal a.maxXp, 5
+		assert.deepEqual a.xp, [0, 5]
 		assert.equal a.currentLevel, 1
 	it "adding enough to xp will cause level increase", ->
 		a = new L()
-		a.currentXp += 2
+		a.gainXp 2
 		assert.equal a.currentLevel, 1
 		assert.equal a.currentXp, 2
-		a.currentXp += 7
-		assert.equal a.currentLevel, 2
-		assert.equal a.currentXp, 4
-		a.currentXp += 6
-		assert.equal a.currentLevel, 3
+		a.gainXp 47
+		assert.equal a.currentLevel, 4
+		assert.equal a.currentXp, 14
+		assert.equal a.maxXp, 40
+		a.gainXp 26
 		assert.equal a.currentXp, 0
+		assert.equal a.currentLevel, 5
 
 

@@ -39,8 +39,8 @@ module.exports.Mixable = class Mixable
 		@constructor.mixins?.apply @, arguments
 	destroy: -> null
 
-MIXIN(Logger)
-	log: (log = $.log) ->
+MIXIN(Logger, log = $.log)
+	log: ->
 		log @constructor.name + (if @name? then "(#{@name})" else ""), arguments...
 
 MIXIN(Position)
@@ -61,8 +61,7 @@ MIXIN(Attribute, name, cur, max)
 	@::['adjust'+caps] = (delta, overflow) ->
 		expected = @[name][0] + delta
 		@['current'+caps] += delta
-		$.log 'adjust'+caps, 'delta', delta, 'expected', expected, 'result', @[name][0]
-		if @[name][0] < expected
+		if @[name][0] < expected or @[name][0] == @[name][1]
 			overflow?.call @, (expected - @[name][0])
 
 MIXIN(ActiveEffects)
@@ -78,7 +77,6 @@ MIXIN(InstanceList)
 	destroy: ->
 		SET_REMOVE(instances, @)
 	instances = []
-	$.log "adding instances to ", @
 	@addInstance = (t) ->
 		SET_ADD(instances, t)
 		@
@@ -87,14 +85,18 @@ MIXIN(InstanceList)
 		@
 	@mapInstances = (f) -> instances.map(f)
 
-MIXIN(Levels)
+MIXIN(Levels) extends Mixable
 	constructor: ->
 	@has Attribute, 'xp', 0, 5
 	@has Attribute, 'level', 1, Infinity
-	gainXP: (delta) ->
-		@adjustXp delta, (overflow) ->
-			@gainLevel()
-			@maxXp *= 2
+	gainXp: (delta) ->
+		do f = (d = delta) =>
+			@adjustXp d, (overflow) =>
+				@gainLevel()
+				@currentXp = 0
+				@maxXp *= 2
+				if overflow > 0
+					f(overflow)
 	gainLevel: (delta) ->
 		@currentLevel += 1
 
