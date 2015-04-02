@@ -81,7 +81,7 @@ class Action.Context
 #define RIGHT(i) (2*i+2)
 #define PARENT(i) ((i-1)/2)
 class Action.Heap
-	constructor: (@capacity, @score = (x) -> x.nice ) ->
+	constructor: (@capacity, @score = (x) -> x?.nice ? 0 ) ->
 		@clear()
 	clear: ->
 		@data = new Array(@capacity)
