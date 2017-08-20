@@ -2,11 +2,14 @@ $ = require 'bling'
 Action = require './action'
 Status = require './status'
 $.extend $.global, require "./globals"
-$.extend $.global, require "./mixins"
+
+{
+	Mixable, Logger, Position,
+	InstanceList, ActiveEffects, Symbol,
+	Attribute, Spellbook, Levels
+} = require "./mixins"
 
 #include "defines.h"
-
-# quick ES6 shim for Map
 
 class Spell
 	constructor: (@name, @cost, @effects...) ->
@@ -15,27 +18,28 @@ class Spell
 class Unit extends Mixable
 	@has Logger
 	@has Position
-	@has InstanceList
+	@has InstanceList()
 
 class Hero extends Unit
 	@has ActiveEffects
-	@has Symbol, '@'
+	@has Symbol '@'
 
-	$.type.register 'hero', is: (o) -> $.isType Wizard, o
+	$.type.register 'hero', is: (o) -> o and $.isType Hero, o
 
-	@has Attribute, 'str', 10, 25
-	@has Attribute, 'int', 22, 25
-	@has Attribute, 'dex', 15, 25
+	@has Attribute 'str', 10, 25
+	@has Attribute 'int', 22, 25
+	@has Attribute 'dex', 15, 25
 
-	@has Attribute, 'hp', 0, 100
-	@has Attribute, 'mp', 0, 50
+	@has Attribute 'hp', 0, 100
+	@has Attribute 'mp', 0, 50
 	@has Spellbook
 
 	@has Levels
 
 	constructor: (@name) ->
+		super()
 		@addStatus new Status.MPS 1, Infinity # innate mp regen
-		@addStatus new Status.ARMOR 'skin', 10, Infinity
+		@addStatus new Status.ARMOR 'skin', 1, Infinity
 		@target = null
 		@adjustMp @adjustMaxMp @currentInt * 4
 		@adjustHp @adjustMaxHp @currentHp * 8
@@ -50,17 +54,22 @@ class Hero extends Unit
 class World extends Mixable
 	@has ActiveEffects
 	constructor: ->
+		super()
 		@map = new TileGrid()
 		@units = []
 	addUnit: SET_ADDER(@units)
 	removeUnit: SET_REMOVER(@units)
 
 if require.main is module
-	c = new Wizard('charlie')
-	c.learn new Spell "Heal Self",  30, new Action.ADDSTATUS 'self', new Status.HPS 5, 3
-	c.learn new Spell "Magic Bolt", 10, new Action.DAMAGE 'target', 'physical', 'skin', 30
-	c.learn new Spell "Force Push", 20, new Action.PUSH 'target', 'away', 10
-	d = new Wizard('darryll')
+	c = new Hero('charlie')
+	c.learn new Spell "Heal Self",  30,
+		new Action.ADDSTATUS 'self',
+			new Status.HPS 5, 3
+	c.learn new Spell "Magic Bolt", 10,
+		new Action.DAMAGE 'target', 'physical', 'skin', 30
+	c.learn new Spell "Force Push", 20,
+		new Action.PUSH 'target', .1
+	d = new Hero('darryll')
 	d.learn new Spell "Zap", 10, new Action.DAMAGE 'target', 'shock', 'skin', 10
 	$.interval 1300, ->
 		d.cast "Zap", c

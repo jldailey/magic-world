@@ -1,6 +1,5 @@
-$ = require 'bling'
-assert = require 'assert'
-Action = require "../bin/action"
+import assert from 'assert'
+import Action from "../lib/action"
 
 describe "Action Heap", ->
 	it "orders based on a 'nice' property", ->
@@ -13,11 +12,11 @@ describe "Action Heap", ->
 	it "executes items in the heap", ->
 		Action.clear()
 		output = ""
-		class Action.ECHO extends Action
+		class Action.__TEST extends Action
 			constructor: (@msg) -> super null
 			end: (context) ->
 				output += @msg
-		echo = (msg) -> new Action.ECHO msg
+		echo = (msg) -> new Action.__TEST msg
 		Action.enqueue echo "one"
 		Action.enqueue echo "two"
 		Action.execute(new Action.Context null, { })

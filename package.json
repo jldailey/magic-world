@@ -1,18 +1,14 @@
 {
-	"name": "world-object-model",
+	"name": "magic-world",
 	"version": "0.0.1",
-	"description": "World Object Model (like a DOM, but maybe for games or something more abstract)",
-	"main": "world.coffee",
+	"description": "",
+	"main": "lib/main.js",
 	"scripts": {
 		"test": "make test"
 	},
 	"dependencies": {
-		"bling":"latest",
-		"browserify":"latest",
-		"uglify":"latest",
-		"chalk":"latest",
-		"coffee-script":"latest"
+		"bling": "latest"
 	},
-	"author": "Jesse Dailey <jesse_dailey@fastmail.com>",
+	"author": "Jesse Granger <jesse_granger@fastmail.com>",
 	"license": "MIT"
 }

@@ -1,9 +1,10 @@
-Bling = $ = require 'bling'
-$.extend $.global, require "./globals"
+import $ from 'bling'
+import "./globals"
+{ PI } = Math
 
 #include "defines.h"
 
-compose = (f, g) ->
+both = (f, g) -> # not compose (which would be g(f(x)), here we just want f(x),g(x)
 	return if typeof f is typeof g is 'function'
 		->
 			f.apply this, arguments
@@ -15,80 +16,98 @@ merge = (a, b) ->
 		continue if k is 'constructor'
 		desc = Object.getOwnPropertyDescriptor(b, k)
 		if not desc?
-			a[k] = compose a[k], b[k]
+			a[k] = both a[k], b[k]
 		else if 'value' of desc
-			a[k] = compose a[k], desc.value
+			a[k] = both a[k], desc.value
 		else if ('get' of desc) or ('set' of desc)
 			Object.defineProperty a, k, desc
 
-module.exports.Mixable = class Mixable
-	@has = (mixin, args...) ->
-		o = (mixin args...)
-		# $.log "creating mix-in", o.name
+export class Mixable
+	@has = (o) ->
 		if o?
-			# $.log "merging prototype fields..."
-			merge(@::, o::)
-			# $.log "merging static fields..."
-			merge(@, o)
-			if o::constructor isnt Function
-				# $.log "adding constructor to mixins hook..."
-				@mixins or= $.hook()
-				@mixins.append o::constructor
+			# apply one mixin to a class
+			merge @::, o::
+			merge @, o
+			(o::constructor isnt Function) and
+				(@mixins or= $.hook()).append o::constructor
 
 	constructor: ->
 		@constructor.mixins?.apply @, arguments
-	destroy: -> null
 
-MIXIN(Logger, log = $.log)
-	log: ->
-		log @constructor.name + (if @name? then "(#{@name})" else ""), arguments...
+export Logger = (log = $.log) ->
+	class Logger
+		log: ->
+			log @constructor.name + (if @name? then "(#{@name})" else ""), arguments...
 
-MIXIN(Position)
+export class Position
 	constructor: ->
-		@pos = $ 0, 0, 0
+		@pos = $ 0, 0, 0, 0
 	PROP('x', @pos, 0, -Infinity, Infinity)
 	PROP('y', @pos, 1, -Infinity, Infinity)
 	PROP('z', @pos, 2, -Infinity, Infinity)
-	moveTo:    (pos) -> @pos = $ pos
-	translate: (pos) -> @pos = @pos.plus pos
+	PROP('r', @pos, 3, -PI, PI)
+	moveTo:    (x,y,z,r) ->
+		@x = x ? @x
+		@y = y ? @y
+		@z = z ? @z
+		@r = r ? @r
+	translate: (dx,dy,dz,dr) ->
+		@x = @x + (dx ? 0)
+		@y = @y + (dy ? 0)
+		@z = @z + (dz ? 0)
+		@r = @r + (dr ? 0)
 
-MIXIN(Attribute, name, cur, max)
+export class Velocity
+	velocity_decay = .99
 	constructor: ->
-		@[name] = $ cur, max
-	caps = $.capitalize $.camelize name
-	PROP('max'+caps,     @[name], 1, 0, 10000)
-	PROP('current'+caps, @[name], 0, 0, @['max'+caps])
-	@::['adjust'+caps] = (delta, overflow) ->
-		expected = @[name][0] + delta
-		@['current'+caps] += delta
-		if @[name][0] < expected or @[name][0] == @[name][1]
-			overflow?.call @, (expected - @[name][0])
+		@vel = $ 0, 0, 0, 0
+	PROP('vx', @vel, 0, -Infinity, Infinity)
+	PROP('vy', @vel, 1, -Infinity, Infinity)
+	PROP('vz', @vel, 2, -Infinity, Infinity)
+	PROP('vr', @vel, 3, -Infinity, Infinity)
+	tickVelocity: (dt) ->
+		@translate (v*dt for v in @vel)...
+		f = pow(velocity_decay,dt)
+		@vel = (v*f for v in @vel)
 
-MIXIN(ActiveEffects)
+export Attribute = (name, cur, max) ->
+	class Attribute
+		constructor: ->
+			@[name] = $ cur, max
+		caps = $.capitalize $.camelize name
+		PROP('max'+caps,     @[name], 1, 0, 10000)
+		PROP('current'+caps, @[name], 0, 0, @['max'+caps])
+		@::['increase'+caps] = (delta, overflow) ->
+			expected = @[name][0] + delta
+			@['current'+caps] += delta
+			if @[name][0] < expected or @[name][0] == @[name][1]
+				overflow?.call @, (expected - @[name][0])
+		@::['decrease'+caps] = (delta, overflow) ->
+			expected = @[name][0] - delta
+			@['current'+caps] -= delta
+			if @[name][0] > expected or @[name][0] == @[name][1]
+				overflow?.call @, (expected - @[name][0])
+
+export class ActiveEffects
 	constructor: ->
 		@active = $()
 	react: FLAT_MAP(@active, react, context, action)
 	addStatus: SET_ADDER(@active)
 	removeStatus: SET_REMOVER(@active)
 
-MIXIN(InstanceList)
-	constructor: ->
-		SET_ADD(instances, @)
-	destroy: ->
-		SET_REMOVE(instances, @)
+export InstanceList = ->
 	instances = []
-	@addInstance = (t) ->
-		SET_ADD(instances, t)
-		@
-	@removeInstance = (t) ->
-		SET_REMOVE(instances, t)
-		@
-	@mapInstances = (f) -> instances.map(f)
+	class InstanceList
+		constructor: -> SET_ADD(instances, @)
+		destroy: ->
+			SET_REMOVE(instances, @)
+			super()
+		@getInstances = -> instances.slice(0)
 
-MIXIN(Levels) extends Mixable
-	constructor: ->
+export class Levels
 	@has Attribute, 'xp', 0, 5
 	@has Attribute, 'level', 1, Infinity
+	constructor: ->
 	gainXp: (delta) ->
 		do f = (d = delta) =>
 			@adjustXp d, (overflow) =>
@@ -96,11 +115,14 @@ MIXIN(Levels) extends Mixable
 				@currentXp = 0
 				@maxXp *= 2
 				if overflow > 0
-					f(overflow)
+					try f(overflow) # partial credit on stack overflow, instead of crash
+				null
+		@
 	gainLevel: (delta) ->
 		@currentLevel += 1
+		@
 
-MIXIN(Spellbook)
+export class Spellbook
 	constructor: ->
 		@spells = new Map()
 	learn: (spell) ->
@@ -115,8 +137,13 @@ MIXIN(Spellbook)
 			@log "Not enough mp for:", spell.name, "need", spell.cost, "have", @currentMp
 		else
 			@log "Casting spell:", name
-			Action.enqueue spell.effects, new Action.Context @, {
+			return applyEffectsToContext spell.effects, {
 				self: @
 				target: @target
 			}
 		@
+
+export Symbol = (s) ->
+	class Symbol
+		constructor: ->
+			@symbol = s

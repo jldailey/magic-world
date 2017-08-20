@@ -2,36 +2,29 @@ COFFEE=./node_modules/.bin/coffee
 UGLIFY=./node_modules/.bin/uglify
 BROWSERIFY=./node_modules/.bin/browserify
 MOCHA=./node_modules/.bin/mocha
-MOCHA_REPORTER?=min
+MOCHA_REPORTER?=spec
 MOCHA_OPTS=--compilers coffee:coffee-script/register -R ${MOCHA_REPORTER} --bail
-JS_FILES=$(shell ls src/*.coffee | sed -e 's/src/bin/' -e 's/coffee/js/')
+JS_FILES=$(shell ls src/*.coffee | sed -e 's/src/lib/' -e 's/coffee/js/')
 
-all: site $(JS_FILES) image
+all: $(JS_FILES) site/textures/tiles.png
+	@echo '  ' DONE
 
-bin/%.js: src/%.coffee defines.h
+clean:
+	rm -rf site/site.js ${JS_FILES}
+
+lib/%.js: src/%.coffee defines.h ${COFFEE}
 	@echo -n ' +' $@
-	@mkdir -p bin && sed -e 's/# .*$$//' $< | cpp -w | coffee -sc > $@
-
-site: site/site.js site/textures/tiles.png
-
-ugly: site/site.ugly.js
-
-%.ugly.js: %.js
-	@echo -n $@...
-	@mkdir -p $(shell dirname $@) && (${UGLIFY} -s $< -o $@ > /dev/null)
-	@echo " DONE"
-
-site/site.js: ${JS_FILES}
-	@echo -n ' >' $@
-	@mkdir -p $(shell dirname $@) && ${BROWSERIFY} bin/map.js -i fs | grep -v sourceMappingURL > site/site.js
-	@echo " DONE"
+	@mkdir -p lib && sed -e 's/# .*$$//' $< | cpp -w | ${COFFEE} -sc > $@
 
 site/textures/tiles.png: site/textures/tiles-tr2.png
 	@echo -n $@ '> '
 	@convert site/textures/tiles-tr2.png -transparent white site/textures/tiles.png
 
+${COFFEE}:
+	npm install coffeescript@next --no-save
+	
 ${MOCHA}:
-	npm install mocha
+	npm install mocha --no-save
 
 test: all ${MOCHA}
 	@${MOCHA} ${MOCHA_OPTS}

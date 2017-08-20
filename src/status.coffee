@@ -1,13 +1,10 @@
-$ = require 'bling'
-empty = Object.freeze []
-Action = require './action'
+import $ from 'bling'
+import Action from './action'
+{min, max} = Math
 
-Math.sign = (n) ->
-	return if n < 0 then "-"
-	else if n > 0 then "+"
-	else ""
+clamp = (n, lo, hi) -> min hi, max lo, n
 
-module.exports = class Status
+export default class Status
 	constructor: (@sec) -> @ms = @sec * 1000
 	isDone: -> @ms <= 0
 	react: (context, action) ->
@@ -16,7 +13,7 @@ module.exports = class Status
 		if @sec > 0 and @ms <= 0
 			ret.push new Action.ENDSTATUS 'owner', @
 		ret
-	log: (msg...) -> $.log "Status."+@constructor.name+":", msg...
+	log: (msg...) -> $.log "Status",@constructor.name, msg...
 
 class Status.SPEED extends Status
 	constructor: (@speed, sec) -> super sec
@@ -26,15 +23,19 @@ class Status.SPEED extends Status
 				action.speed += @speed
 
 class Status.ARMOR extends Status
+	toString = (ac) ->
+		(if ac > 0 then "+" else "") + ac
 	constructor: (@ac, @slot, sec) ->
 		super sec
 		@pattern = { 'constructor': Action.DAMAGE, type: 'physical', slot: @slot }
 	log: (msg...) ->
-		$.log "ARMOR(#{@slot},#{Math.sign @ac}#{Math.abs @ac}):", msg...
+		@log "[#{@slot}, #{toString @ac}]", msg...
 	react: (context, action) ->
-		try return super(context, action)
-		finally if $.matches @pattern, action
-			action.damage *= @log "reducing damage by", (1 - @ac/100)
+		if $.matches @pattern, action
+			@log "reducing damage by",
+			dd = (clamp (1 - @ac/100), 0.05, 10.0), "to",
+			action.damage *= dd
+		super(context, action)
 
 class Status.HPS extends Status
 	constructor: (@hps, sec) -> super sec

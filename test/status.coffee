@@ -1,7 +1,6 @@
 
-$ = require 'bling'
-assert = require 'assert'
-Status = require '../bin/status'
+import assert from 'assert'
+import Status from '../lib/status'
 
 describe "Status", ->
 	describe "::react(context, action)", ->

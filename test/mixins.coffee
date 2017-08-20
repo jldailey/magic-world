@@ -1,6 +1,6 @@
 
 $ = require 'bling'
-$.extend $.global, require '../bin/mixins'
+$.extend $.global, require '../lib/mixins'
 assert = require 'assert'
 
 collect_log_output = (f) ->
@@ -49,7 +49,7 @@ describe "Position", ->
 	it "adds a .z property", ->
 		assert.equal new P().z, 0
 	it "adds a .pos property", ->
-		assert.deepEqual new P().pos, [0, 0, 0]
+		assert.deepEqual new P().pos, [0, 0, 0, 0]
 	it "adds a .moveTo function", ->
 		assert.equal (typeof new P().moveTo), "function"
 	it "adds a .translate function", ->
@@ -129,9 +129,9 @@ describe "InstanceList", ->
 	it "provides a global instance list", ->
 		a = new I()
 		b = new I()
-		assert.deepEqual I.mapInstances($.identity), [ a, b ]
+		assert.deepEqual I.getInstances(), [ a, b ]
 		I.removeInstance a
-		assert.deepEqual I.mapInstances($.identity), [ b ]
+		assert.deepEqual I.getInstances(), [ b ]
 
 describe "Levels", ->
 	class L extends Mixable
